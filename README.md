@@ -87,9 +87,134 @@ To see if prometheus connected to node-exporter and scrapping metrcis, navigate 
 
 ![image](https://github.com/user-attachments/assets/6ccc1598-38ad-4ba2-8ead-8cc451d39501)
 
-6. Now navigate to Dashboard and Click New > Import. Enter a Grafana Dashboard Id or Url for Node Exporter and select Prometheus as Data Source. In my case I've used 1860 Dashboard id or find from here https://grafana.com/grafana/dashboards/
- 
+6. Now navigate to Dashboard and Click New > Import. Enter a Grafana Dashboard Id or Url for Node Exporter and select Prometheus as Data Source. In my case I've used 1860 Dashboard id or find from here https://grafana.com/grafana/dashboards/. Dashboard will look like this:
 
+![image](https://github.com/user-attachments/assets/d53aba89-b765-4d78-893e-3b2a102e4d94)
+
+
+Now you can add cadvisor to scrap your docker containers, mongodb-exporter, sqlserver-exporter to monitor mongoDB and SQL Server or any other database, RabbitMQ, elastic-search etc, 
+
+To collect metrics of Web APIs you can expose web metrics from you Nodejs, DotNet or from any other framework to monitor APIs performence. In my case I enabled it in DotNet webApi following way:
+1. I added a custom middleware first like following:
+ ```
+namespace WebApi.Middlewares
+{
+    public class CustomMetricsMiddleware
+    {
+        private readonly RequestDelegate _next;
+
+        // Updated Histogram with 'controller' and 'action' labels added
+        private static readonly Histogram _requestDuration = Metrics
+            .CreateHistogram("http_request_duration_seconds",
+                             "Duration of HTTP requests in seconds",
+                             new HistogramConfiguration
+                             {
+                                 Buckets = Histogram.ExponentialBuckets(0.1, 2, 10),
+                                 LabelNames = new[] { "method", "route", "status_code", "controller", "action" }
+                             });
+
+        public CustomMetricsMiddleware(RequestDelegate next)
+        {
+            _next = next;
+        }
+
+        public async Task InvokeAsync(HttpContext context)
+        {
+            var timer = Stopwatch.StartNew();
+
+            await _next(context);  // Continue processing the request
+
+            timer.Stop();
+
+            var statusCode = context.Response.StatusCode.ToString();
+            var method = context.Request.Method;
+
+            // Capture route pattern instead of raw path
+            var routeData = context.GetRouteData();
+            var route = routeData.Values["page"]?.ToString() ??
+                        routeData.Values["controller"]?.ToString() ??
+                        routeData.Values["action"]?.ToString() ??
+                        context.Request.Path.Value ?? "unknown";
+
+            // Add labels for controller and action
+            var controller = routeData.Values["controller"]?.ToString() ?? "unknown";
+            var action = routeData.Values["action"]?.ToString() ?? "unknown";
+
+            _requestDuration
+                .WithLabels(method, route, statusCode, controller, action)
+                .Observe(timer.Elapsed.TotalSeconds);
+        }
+    }
+}
+ ```
+2. In Startup.cs add following lines
+
+ ```
+        // Enable Routing
+        app.UseRouting();
+
+        // Add Prometheus HTTP Metrics Middleware (Before Custom Middleware)
+        app.UseHttpMetrics();
+
+        // Add Custom Metrics Middleware for Enhanced Metrics
+        app.UseMiddleware<CustomMetricsMiddleware>();                    
+        app.UseEndpoints(endpoints =>
+        {
+            endpoints.MapMetrics();
+            endpoints.MapControllers();
+        });
+```
+
+ 3. In nodejs you can do in following way
+```
+ const express = require('express');
+ const client = require('prom-client');
+ const app = express();
+ const register = client.register;
+ 
+ // Default system metrics (CPU, memory, etc.)
+ client.collectDefaultMetrics();
+ 
+ // Custom metric example
+ const httpRequestCounter = new client.Counter({
+   name: 'http_requests_total',
+   help: 'Total number of HTTP requests',
+   labelNames: ['method', 'route', 'status']
+ });
+ 
+ // Middleware to increment counter
+ app.use((req, res, next) => {
+   res.on('finish', () => {
+     httpRequestCounter.labels(req.method, req.path, res.statusCode).inc();
+   });
+   next();
+ });
+ 
+ // Metrics endpoint
+ app.get('/metrics', async (req, res) => {
+   res.set('Content-Type', register.contentType);
+   res.end(await register.metrics());
+ });
+ 
+ // Your actual API routes
+ app.get('/', (req, res) => {
+   res.send('Hello from Node.js app!');
+ });
+ 
+ const PORT = process.env.PORT || 3000;
+ app.listen(PORT, () => console.log(`App listening on port ${PORT}`));
+```
+
+3. Update prometheus.yml for API scraping with:
+
+```
+- job_name: 'dotnet-api' # any name 
+    static_configs:
+      - targets: ['<web-api-container>:<port>'] # Here I am using container's name as host as my web application and prometheus is also in same network. Make sure the IP addess if these are not in same network 
+```
+
+## Alertmanager configuration
+To enabale alert you need to first update docker-compose.yml file by adding another service for prometheus alert, 
 
 
 
