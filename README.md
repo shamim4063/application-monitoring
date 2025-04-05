@@ -17,7 +17,7 @@ The Prometheus server is the core of the system, responsible for collecting, sto
 Initially, I will deploy Prometheus using Docker and use Node Exporter to collect and expose key server-level metrics. These include CPU usage, memory consumption, disk space utilization, and file system statistics. In addition, Node Exporter provides valuable insights into system load averages, network I/O, disk I/O, process counts, context switches, and system uptime. This foundational setup will allow me to gain visibility into the health and performance of the infrastructure, helping detect issues early and ensure smooth application operations.
 
 1. create a docker-compose.yml file with followig configuration. Here I am using prometheus offcial docker image prom/prometheus and node-exporter to collect OS and hardware-level metrics like CPU usage, Memory usage, Disk I/O, File system space, Network throughput
-Load averages, System uptime, Number of running processes, etc.
+Load averages, System uptime, Number of running processes, etc. Make sure both containers are in same network.
 
  ```
 version: '3.8'
@@ -62,3 +62,28 @@ scrape_configs:
     static_configs:
       - targets: ['node-exporter:9100']
 ```
+3. Run ```docker-compose up -d``` in the directory where you have created the files. After opening the prometheus port(9090) in firewall or adding in the security group enter http://<your-server-host>:9090 in your browser. You will see the prometheus UI like following with promQL field
+![image](https://github.com/user-attachments/assets/b03c22f6-6b2a-47a9-a03f-2e59dced9d8b)
+
+To see if prometheus connected to node-exporter and scrapping metrcis, navigate to the Status and Targets. It will be shwon like following:
+
+![image](https://github.com/user-attachments/assets/f5867cb9-894d-4595-a61a-137606e4832c)
+
+4. Install Grafana to to connect to Prometheus for better visualization of the metrics of node exporter. Add following configuration in docker-compose.yml
+
+```
+  grafana:
+    image: grafana/grafana
+    container_name: grafana
+    restart: always
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana-storage:/var/lib/grafana
+    networks:
+      - monitoring
+```  
+
+
+
+
