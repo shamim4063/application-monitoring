@@ -83,6 +83,12 @@ To see if prometheus connected to node-exporter and scrapping metrcis, navigate 
     networks:
       - monitoring
 ```  
+5. Run ```docker-compose down``` then ``` docker-compose up -d```. Go to browser enter  http://<your-server-host>:3000 will render Grafana. To connect Grafan with prometheus, go to Connection > Data Source and click Add New Datasource. Enter http://prometheus:9090 as Prometheus server URL as Grafana and Prometheus are in same network http://<prometheus-container-name>:9090 should work. Now Click Save & Test  
+
+![image](https://github.com/user-attachments/assets/6ccc1598-38ad-4ba2-8ead-8cc451d39501)
+
+6. Now navigate to Dashboard and Click New > Import. Enter a Grafana Dashboard Id or Url for Node Exporter and select Prometheus as Data Source. In my case I've used 1860 Dashboard id or find from here https://grafana.com/grafana/dashboards/
+ 
 
 
 
