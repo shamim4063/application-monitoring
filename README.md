@@ -15,3 +15,50 @@ The Prometheus server is the core of the system, responsible for collecting, sto
 
 ## Installation:
 Initially, I will deploy Prometheus using Docker and use Node Exporter to collect and expose key server-level metrics. These include CPU usage, memory consumption, disk space utilization, and file system statistics. In addition, Node Exporter provides valuable insights into system load averages, network I/O, disk I/O, process counts, context switches, and system uptime. This foundational setup will allow me to gain visibility into the health and performance of the infrastructure, helping detect issues early and ensure smooth application operations.
+
+1. create a docker-compose.yml file with followig configuration. Here I am using prometheus offcial docker image prom/prometheus and node-exporter to collect OS and hardware-level metrics like CPU usage, Memory usage, Disk I/O, File system space, Network throughput
+Load averages, System uptime, Number of running processes, etc.
+
+ ```
+version: '3.8'
+services:
+  prometheus:
+    image: prom/prometheus
+    container_name: prometheus
+    restart: always
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    networks:
+      - monitoring
+
+  node-exporter:
+    image: prom/node-exporter
+    container_name: node-exporter
+    restart: always
+    ports:
+      - "9100:9100"
+    networks:
+      - monitoring
+```
+2. Create file prometheus.yml. This is the main configuration file for how Prometheus operates. We will define here  What to Monitor, How Often to Scrape, Sets Up Monitoring Jobs, Foundation for Alerts etc.
+
+```
+# Global configuration
+global:
+  scrape_interval: 15s # Set the scrape interval to every 15 seconds. Default is every 1 minute.
+  evaluation_interval: 15s # Evaluate rules every 15 seconds. The default is every 1 minute.
+
+# Scrape configuration.
+# Here it's Prometheus itself.
+scrape_configs:
+  
+  - job_name: "prometheus"
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['node-exporter:9100']
+```
