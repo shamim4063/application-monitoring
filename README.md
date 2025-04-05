@@ -94,6 +94,7 @@ To see if prometheus connected to node-exporter and scrapping metrcis, navigate 
 
 Now you can add cadvisor to scrap your docker containers, mongodb-exporter, sqlserver-exporter to monitor mongoDB and SQL Server or any other database, RabbitMQ, elastic-search etc, 
 
+## API Scraping
 To collect metrics of Web APIs you can expose web metrics from you Nodejs, DotNet or from any other framework to monitor APIs performence. In my case I enabled it in DotNet webApi following way:
 1. I added a custom middleware first like following:
  ```
@@ -214,7 +215,79 @@ namespace WebApi.Middlewares
 ```
 
 ## Alertmanager configuration
-To enabale alert you need to first update docker-compose.yml file by adding another service for prometheus alert, 
+1. To enabale alert you need to update docker-compose.yml file by adding another service for prometheus alert.
+ ```
+  alertmanager:
+   image: prom/alertmanager
+   container_name: alertmanager
+   restart: always
+   ports:
+    - "9093:9093"
+   volumes:
+    - ./alertmanager.yml://etc/alertmanager/alertmanager.yml
+   networks:
+    - monitoring
+```
+2. Create alertmanager.yml to  Routes Alerts to the Right Channels, Groups and Manages Alerts Logically, Adds Control & Customization
+
+```
+global:
+  resolve_timeout: 5m
+
+route:
+  receiver: 'slack-alert'
+  group_by: ['alertname', 'severity']
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 3h
+
+receivers:
+  - name: 'slack-alert'
+    slack_configs:
+      - send_resolved: true
+        channel: '#<channel-name>'
+        username: 'SystemAlertManager'
+        api_url: '<Slack API Url>'
+        title: "{{ range .Alerts }}{{ .Annotations.summary }}\n{{ end }}"
+        text: "{{ range .Alerts }}{{ .Annotations.description }}\n{{ end }}"
+```
+
+3. To Define Alert Rules create alert.rules.yml. We will define conditions under which alerts should be triggered, Set thresholds and durations for when those conditions become actionable.
+
+```
+groups:
+- name: system_alerts
+  rules:
+  - alert: HighCPUUsage
+    expr: (100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[1m])) * 100)) > 80
+    for: 2m
+    labels:
+      severity: warning
+    annotations:
+      summary: "High CPU Usage"
+      description: "CPU usage is above 80% for more than 2 minutes."
+
+  - alert: HighMemoryUsage
+    expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 90
+    for: 2m
+    labels:
+      severity: warning
+    annotations:
+      summary: "High Memory Usage"
+      description: "Memory usage is above 90% for more than 2 minutes."
+
+  - alert: LowDiskSpace
+    expr: (node_filesystem_avail_bytes{device="/dev/root"} / node_filesystem_size_bytes{device="/dev/root"}) * 100 < 10 # I define this expression based on my file system(AWS ubuntu). Make sure your directory structure
+    for: 5m
+    labels:
+      severity: critical
+    annotations:
+      summary: "Low Disk Space"
+      description: "Less than 10% disk space available."
+
+```
+
+
 
 
 
