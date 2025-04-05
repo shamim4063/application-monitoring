@@ -95,7 +95,7 @@ To see if prometheus connected to node-exporter and scrapping metrcis, navigate 
 Now you can add cadvisor to scrap your docker containers, mongodb-exporter, sqlserver-exporter to monitor mongoDB and SQL Server or any other database, RabbitMQ, elastic-search etc, 
 
 ## API Scraping
-To collect metrics of Web APIs you can expose web metrics from you Nodejs, DotNet or from any other framework to monitor APIs performence. In my case I enabled it in DotNet webApi following way:
+To collect metrics of Web APIs you can expose web metrics from Nodejs, DotNet or from any other framework to monitor APIs performence. In my case I enabled it in DotNet webApi following way:
 1. I added a custom middleware first like following:
  ```
 namespace WebApi.Middlewares
