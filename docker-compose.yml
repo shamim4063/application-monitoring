@@ -28,7 +28,7 @@ services:
     container_name: grafana
     restart: always
     ports:
-      - "9101:3000"
+      - "3000:3000"
     volumes:
       - grafana-storage:/var/lib/grafana
     networks:
@@ -39,7 +39,7 @@ services:
     container_name: cadvisor
     restart: always
     ports:
-      - "9102:8080"
+      - "8080:8080"
     volumes:
       - /:/rootfs:ro
       - /var/run:/var/run:ro
