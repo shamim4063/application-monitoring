@@ -1,0 +1,87 @@
+version: '3.8'
+
+services:
+  prometheus:
+    image: prom/prometheus
+    container_name: prometheus
+    restart: always
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./alert.rules.yml:/etc/prometheus/alert.rules.yml
+    networks:
+      - monitoring
+      - web-api # Connecting Prometheus to .Net core web api/Nodejs project network.
+
+  node-exporter:
+    image: prom/node-exporter
+    container_name: node-exporter
+    restart: always
+    ports:
+      - "9100:9100"
+    networks:
+      - monitoring
+
+  grafana:
+    image: grafana/grafana
+    container_name: grafana
+    restart: always
+    ports:
+      - "9101:3000"
+    volumes:
+      - grafana-storage:/var/lib/grafana
+    networks:
+      - monitoring
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.47.2
+    container_name: cadvisor
+    restart: always
+    ports:
+      - "9102:8080"
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+    networks:
+      - monitoring
+
+  sqlserver-exporter:
+    image: awaragi/prometheus-mssql-exporter
+    container_name: sqlserver-exporter
+    restart: always
+    ports:
+      - "4000:4000"
+    environment:
+      - SERVER=<sql-server-host>
+      - USERNAME=sa
+      - PASSWORD=<password>
+      - PORT=1433 
+      - DEBUG=false
+    networks:
+      - monitoring
+
+
+  alertmanager:
+   image: prom/alertmanager
+   container_name: alertmanager
+   restart: always
+   ports:
+    - "9093:9093"
+   volumes:
+    - ./alertmanager.yml://etc/alertmanager/alertmanager.yml
+   networks:
+    - monitoring
+
+
+
+networks:
+  monitoring:
+    driver: bridge
+  web-api: # Shared network with .NET Core API
+    external: true # Allows both docker-compose files to connect
+
+volumes:
+  grafana-storage:
