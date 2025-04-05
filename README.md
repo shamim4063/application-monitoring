@@ -287,6 +287,9 @@ groups:
 
 ```
 
+## Finally 
+To see my full configuration see the source folder. Update the host, port, rules etc based on your case and just run `docker-compose up -d`. Then add different dashboards in Grafana for cadvisor(Dashboard Id: 193) , SQL Server(Dashboard ID: 13919)
+
 
 
 
