@@ -1,0 +1,98 @@
+groups:
+- name: system_alerts
+  rules:
+  - alert: HighCPUUsage
+    expr: (100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[1m])) * 100)) > 80
+    for: 2m
+    labels:
+      severity: warning
+    annotations:
+      summary: "High CPU Usage"
+      description: "CPU usage is above 80% for more than 2 minutes in."
+
+  - alert: HighMemoryUsage
+    expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 90
+    for: 2m
+    labels:
+      severity: warning
+    annotations:
+      summary: "High Memory Usage"
+      description: "Memory usage is above 90% for more than 2 minutes in."
+
+  - alert: LowDiskSpace
+    expr: (node_filesystem_avail_bytes{device="/dev/root"} / node_filesystem_size_bytes{device="/dev/root"}) * 100 < 10
+    for: 5m
+    labels:
+      severity: critical
+    annotations:
+      summary: "Low Disk Space"
+      description: "Less than 10% disk space available in."
+
+  - alert: DockerContainerDown
+    expr: count(container_last_seen{container_label_com_docker_compose_service!=""}) by (container_label_com_docker_compose_service) == 0
+    for: 1m
+    labels:
+      severity: critical
+    annotations:
+      summary: "Docker Container is Down"
+      description: "A Docker container {{ $labels.container_label_com_docker_compose_service }} is not running."
+
+
+  - alert: SlowAPIResponse
+    expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{endpoint!="", endpoint!~"/metrics|/swagger.*", route=~".*"}[5m])) > 5 # I've ignored some endpoints I don't need to monitor like swagger, metrics itself and anything start with route
+    for: 2m
+    labels:
+      severity: warning
+    annotations:
+      summary: "Slow API Detected"
+      description: "Controller: {{ $labels.controller }}, API Endpoint: {{ $labels.endpoint }}, API Method: {{ $labels.method }} took {{ $value }} seconds to send response and the response status code was {{ $labels.code }}"
+
+  - alert: SQLServerDeadlock
+    expr: delta(mssql_deadlocks[1m]) > 5
+    for: 1m
+    labels:
+      severity: critical
+    annotations:
+      summary: "Sudden Deadlock Spike Detected"
+      description: |
+        {{ $value }} deadlocks detected in the past 1 minute.
+        Investigate recent query changes, locks, or deadlock-prone transactions.
+           
+  - alert: SQLServerHighCPUUsage
+    expr: avg_over_time(mssql_batch_requests[15m]) > 8000
+    for: 10m
+    labels:
+      severity: critical
+    annotations:
+      summary: "High CPU Usage Detected in SQL Server"
+      description: SQL Server batch requests have exceeded 8000 per second for 10 minutes. Investigate high query load, CPU-intensive queries, or index inefficiencies.
+
+  - alert: SQLServerHighMemoryUsage
+    expr: mssql_memory_utilization_percentage > 90
+    for: 5m
+    labels:
+      severity: critical
+    annotations:
+      summary: "High Memory Usage Detected in SQL Server "
+      description: Memory usage on SQL Server has exceeded 90% for 5 minutes. Investigate memory-intensive queries or index fragmentation.
+
+  - alert: SQLServerServiceDown
+    expr: mssql_up == 0
+    for: 1m
+    labels:
+      severity: critical
+    annotations:
+      summary: "SQL Server Service Down "
+      description: SQL Server is unresponsive. Immediate investigation required.
+
+
+  - alert: ConnectionPoolSaturation
+    expr: delta(mssql_connections[5m]) > (sum(mssql_connections) * 0.1)
+    for: 5m
+    labels:
+      severity: warning
+    annotations:
+      summary: "Sudden SQL Server Connection Spike Detected "
+      description: |
+        {{ $value }} new connections detected in the past 5 minutes.
+        Possible traffic surge or connection pool misbehavior.
